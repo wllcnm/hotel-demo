@@ -7,6 +7,8 @@ import cn.itcast.hotel.pojo.HotelDoc;
 import cn.itcast.hotel.service.IHotelService;
 import cn.itcast.hotel.service.impl.HotelService;
 import org.apache.http.HttpHost;
+import org.elasticsearch.action.bulk.BulkRequest;
+import org.elasticsearch.action.delete.DeleteRequest;
 import org.elasticsearch.action.get.GetRequest;
 import org.elasticsearch.action.get.GetResponse;
 import org.elasticsearch.action.index.IndexRequest;
@@ -49,7 +51,6 @@ public class HotelDocTest {
     void testCreateDoc() throws IOException {
         //1.创建request对象
         IndexRequest request = new IndexRequest("hotel");
-
         //2.获取数据库中的文件
         List<Hotel> hotels = hotelService.list();
         for (Hotel hotel : hotels) {
@@ -64,13 +65,36 @@ public class HotelDocTest {
         }
     }
 
+    //批量创建doc文档,关键api:client.bulk()
+    @Test
+    void testCreateMoreDoc() throws IOException {
+
+        //1.构建bulkRequest请求
+        BulkRequest request = new BulkRequest();
+
+        //2.从数据库获取所有酒店信息
+        List<Hotel> hotels = hotelService.list();
+        //2.1.直接利用stream流中的map将hotel转换为hotelDoc
+        List<HotelDoc> hotelDocs = hotels.stream().map(HotelDoc::new).collect(Collectors.toList());
+        //3.对获取得到的list循环
+        for (HotelDoc hotel : hotelDocs) {
+            //3.1将hotels中的每一个hotel转换为hotelDoc
+            // HotelDoc hotelDoc = new HotelDoc(hotel);
+            //3.2将hotelDoc转换为json字符串
+            String s = JSONUtil.toJsonStr(hotel);
+            //3.3利用request.source添加要发送的json
+            request.add(new IndexRequest("hotel").id(hotel.getId().toString()).source(s, XContentType.JSON));
+        }
+        //4.发送bulk请求
+        client.bulk(request, RequestOptions.DEFAULT);
+    }
+
     //查询doc文档,关键api:client.get()
     @Test
     void testGetDoc() throws IOException {
         List<Hotel> hotels = hotelService.list();
 
         List<Long> ids = hotels.stream().map(Hotel::getId).collect(Collectors.toList());
-
         for (Long id : ids) {
             //1.创建请求
             GetRequest get = new GetRequest("hotel", id.toString());
@@ -99,6 +123,15 @@ public class HotelDocTest {
         client.update(request, RequestOptions.DEFAULT);
     }
 
+    //删除文档,关键api:client.delete()
+    @Test
+    void testDeleteDoc() throws IOException {
+        //1.构建删除请求
+        DeleteRequest request = new DeleteRequest("hotel", "36934");
+
+        //2.发送删除请求
+        client.delete(request, RequestOptions.DEFAULT);
+    }
 
     @AfterEach
     void close() throws IOException {
