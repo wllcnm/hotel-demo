@@ -31,4 +31,9 @@ public class HotelController {
         return hotelService.getSuggestions(key);
     }
 
+    @GetMapping("/hello")
+    public String getHello() {
+        return "hello";
+    }
+
 }
